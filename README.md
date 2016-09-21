@@ -71,8 +71,12 @@ import {grant} from 'mongodb-quota';
 | ttl | Integer | Yes | - | Quota duration in [ms].
 | inc | Integer | No | 0 | Increment quota key by `inc` value. Note that in case of an array, affested quotas are automatically decremented.
 
-**quota.setup()**:Promise
+**quota.setup({background})**:Promise
 > Installs MongoDB collection indexes.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| background | Boolean | No | false | Run long setup commands in background (e.g. index creation).
 
 ## License (MIT)
 

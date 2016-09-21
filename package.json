@@ -1,6 +1,6 @@
 {
   "name": "mongodb-quota",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "General-purpose quota management for MongoDB",
   "main": "./dist/index.js",
   "ava": {
