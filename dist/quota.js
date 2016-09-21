@@ -25,27 +25,36 @@ class Quota {
   * Class constructor.
   */
 
-  constructor(_ref) {
-    let collection = _ref.collection;
-    let namespace = _ref.namespace;
+  constructor() {
+    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 
-    this.collection = collection;
-    this.namespace = namespace;
+    let redis = _ref.redis;
+    var _ref$prefix = _ref.prefix;
+    let prefix = _ref$prefix === undefined ? 'quota' : _ref$prefix;
+
+    this.redis = redis;
+    this.prefix = prefix;
+  }
+
+  /*
+  * Returns an identifier which represents a unique redis key.
+  */
+
+  getIdentifier() {
+    var _ref2 = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+
+    let key = _ref2.key;
+    let unit = _ref2.unit;
+
+    let timestamp = (0, _moment2.default)().startOf(unit).unix();
+    return [this.prefix, timestamp, `<${ key }>`].filter(i => !!i).join('-');
   }
 
   /*
   * Removes all key quotas.
   */
 
-  flush(key, ttl) {
-    return _asyncToGenerator(function* () {})();
-  }
-
-  /*
-  * Verifies key quota or throws the QuotaError.
-  */
-
-  grant() {
+  flush() {
     var _arguments = arguments,
         _this = this;
 
@@ -56,106 +65,81 @@ class Quota {
         options = [options];
       }
 
-      let rollbackIndex = -1;
+      let dels = [];
+      for (let option of options) {
+        let identifier = _this.getIdentifier(option);
 
-      // quota check and incrementation
-      for (let i in options) {
-        var _options$i = options[i];
-        let key = _options$i.key;
-        let ttl = _options$i.ttl;
-        let size = _options$i.size;
-        let start = _options$i.start;
-        var _options$i$inc = _options$i.inc;
-        let inc = _options$i$inc === undefined ? 0 : _options$i$inc;
-
-        let namespace = _this.namespace;
-        let expireAt = (0, _moment2.default)().add(ttl, 'milliseconds').toDate();
-
-        let res = yield _this.collection.findOneAndUpdate({
-          namespace, key, ttl
-        }, {
-          $setOnInsert: { expireAt },
-          $inc: { value: inc }
-        }, {
-          returnOriginal: false,
-          upsert: true
-        });
-
-        let record = res.value;
-        if (!record) {
-          throw new Error('No quota record found for commit');
-        }
-
-        if (record.value > size) {
-          rollbackIndex = i;
-          break;
-        }
+        dels.push(['del', identifier]);
       }
-
-      // quota incrementation rollback
-      for (let i = 0; i <= rollbackIndex; i++) {
-        var _options$i2 = options[i];
-        let key = _options$i2.key;
-        let ttl = _options$i2.ttl;
-        let size = _options$i2.size;
-        var _options$i2$inc = _options$i2.inc;
-        let inc = _options$i2$inc === undefined ? 0 : _options$i2$inc;
-
-        let namespace = _this.namespace;
-        let expireAt = (0, _moment2.default)().add(ttl, 'milliseconds').toDate();
-
-        let res = yield _this.collection.findOneAndUpdate({
-          namespace, key, ttl
-        }, {
-          $inc: { value: inc * -1 }
-        });
-
-        let record = res.value;
-        if (!record) {
-          throw new Error('No quota record found for rollback');
-        }
-      }
-
-      // throw an error if exceeded
-      if (rollbackIndex !== -1) {
-        let option = options[rollbackIndex];
-        throw new _errors.QuotaError(option);
-      }
+      yield _this.redis.multi(dels).exec();
     })();
   }
 
   /*
-  * Installs MongoDB collection indexes.
+  * Verifies key quota or throws the QuotaError.
   */
 
-  setup() {
-    var _this2 = this,
-        _arguments2 = arguments;
+  grant() {
+    var _arguments2 = arguments,
+        _this2 = this;
 
     return _asyncToGenerator(function* () {
-      var _ref2 = _arguments2.length <= 0 || _arguments2[0] === undefined ? {} : _arguments2[0];
+      let options = _arguments2.length <= 0 || _arguments2[0] === undefined ? [] : _arguments2[0];
 
-      var _ref2$background = _ref2.background;
-      let background = _ref2$background === undefined ? false : _ref2$background;
+      if (!Array.isArray(options)) {
+        options = [options];
+      }
 
-      yield _this2.collection.createIndex({ // for automatic expiration
-        expireAt: 1
-      }, {
-        expireAfterSeconds: 0,
-        sparse: true,
-        background,
-        name: 'expireAtTTL'
+      // increment quota keys and build data
+      let identifiers = [];
+      let grants = [];
+      for (let option of options) {
+        let identifier = _this2.getIdentifier(option);
+        identifiers.push(identifier);
+
+        let key = option.key;
+        let limit = option.limit;
+        let unit = option.unit;
+
+        let ttl = (0, _moment2.default)(0).add(1, unit).unix();
+        grants.push(['set', identifier, '0', 'PX', ttl, 'NX']);
+        grants.push(['incrby', identifier, 1]);
+      }
+      let res = yield _this2.redis.multi(grants).exec();
+      let values = res.map(function (v) {
+        return v[1];
+      }).splice(1).filter(function (v) {
+        return v !== null;
       });
-      yield _this2.collection.createIndex({ // for speed
-        namespace: 1,
-        key: 1,
-        ttl: 1
-      }, {
-        sparse: true,
-        unique: true,
-        background,
-        name: 'namespaceKeyDurationPerformance'
-      });
+
+      // check if limits are exceeded
+      let rollback = false;
+      for (let i in options) {
+        let value = values[i];
+        let limit = options[i].limit;
+
+
+        if (value > limit) {
+          rollback = true;
+          break;
+        }
+      }
+
+      // limits are granted
+      if (!rollback) {
+        return;
+      }
+
+      // decrement if rollback is requested (it's safe because quota is never checked in the past)
+      let rollbacks = [];
+      for (let identifier of identifiers) {
+        rollbacks.push(['set', identifier, '0', 'PX', 1, 'NX']); // recreate and immediatelly expire but only if the key has already expire
+        rollbacks.push(['incrby', identifier, -1]); // decrement
+      }
+      yield _this2.redis.multi(rollbacks).exec();
+
+      // throw error
+      throw new _errors.QuotaError();
     })();
   }
 

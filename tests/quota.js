@@ -1,44 +1,30 @@
-const {MongoClient} = require('mongodb');
+const Redis = require('ioredis');
 const test = require('ava');
 const {Quota, QuotaError} = require('../dist');
 const sleep = require('es6-sleep').promise;
 
 test.beforeEach(async (t) => {
-  t.context.mongo = await MongoClient.connect('mongodb://localhost:27017/test');
-  t.context.collection = t.context.mongo.collection('quotas');
+  t.context.redis = new Redis();
+  await t.context.redis.flushdb();
 });
 
 test.afterEach(async (t) => {
-  await t.context.mongo.close();
-  t.context.collection = null;
-  t.context.mongo = null;
-});
-
-test.serial('setup()', async (t) => {
-  let collection = t.context.collection;
-
-  let quota = new Quota({collection});
-  try {
-    await collection.drop();
-  } catch(e) {}
-  await quota.setup();
-
-  let exist = await collection.indexExists(['expireAtTTL', 'namespaceKeyDurationPerformance']);
-  t.is(exist, true);
+  await t.context.redis.flushdb();
+  await t.context.redis.quit();
+  t.context.redis = null;
 });
 
 test.serial('grant() throws error when quota size is exceeded', async (t) => {
-  let collection = t.context.collection;
-  await collection.deleteMany({});
+  let redis = t.context.redis;
 
-  let quota = new Quota({collection});
-  await quota.setup();
-
+  let quota = new Quota({redis});
   let error = null;
   try {
-    await quota.grant({key: 'foo', ttl: 5000, size: 1});
-    await quota.grant({key: 'foo', ttl: 5000, size: 4, inc: 3});
-    await quota.grant({key: 'foo', ttl: 5000, size: 4, inc: 2});
+    await quota.grant({key: 'foo', unit: 'minute', limit: 2});
+    await quota.grant([
+      {key: 'foo', unit: 'minute', limit: 2},
+      {key: 'foo', unit: 'minute', limit: 2}
+    ]);
   } catch(e) {
     error = e;
   }
@@ -46,16 +32,13 @@ test.serial('grant() throws error when quota size is exceeded', async (t) => {
 });
 
 test.serial('grant() uses TTL for determing current quota size', async (t) => {
-  let collection = t.context.collection;
-  await collection.deleteMany({});
+  let redis = t.context.redis;
 
-  let quota = new Quota({collection});
-  await quota.setup();
-
+  let quota = new Quota({redis});
   try {
-    await quota.grant({key: 'foo', ttl: 5000, size: 1, inc: 1});
-    await sleep(61000);
-    await quota.grant({key: 'foo', ttl: 5000, size: 1, inc: 1});
+    await quota.grant({key: 'foo', unit: 'second', limit: 1});
+    await sleep(1001);
+    await quota.grant({key: 'foo', unit: 'second', limit: 1});
     t.pass();
   } catch(e) {
     t.fail();
@@ -63,51 +46,36 @@ test.serial('grant() uses TTL for determing current quota size', async (t) => {
 });
 
 test.serial('grant() rollbacks previouslly incremented records if quota size is exceeded', async (t) => {
-  let collection = t.context.collection;
-  await collection.deleteMany({});
+  let redis = t.context.redis;
 
-  let quota = new Quota({collection});
-  await quota.setup();
-
-  let record = null;
+  let quota = new Quota({redis});
+  let value = null;
   try {
-    await quota.grant({key: 'foo', ttl: 5000, size: 4, inc: 1});
+    await quota.grant({key: 'foo', unit: 'year', limit: 1});
     await quota.grant([
-      {key: 'foo', ttl: 5000, size: 4, inc: 1},
-      {key: 'foo', ttl: 5000, size: 4, inc: 1},
-      {key: 'foo', ttl: 5000, size: 4, inc: 2}
+      {key: 'foo', unit: 'year', limit: 2},
+      {key: 'foo', unit: 'year', limit: 2}
     ]);
   } catch(e) {
-    record = await collection.findOne({namespace: null, key: 'foo', ttl: 5000});
+    value = await redis.get(quota.getIdentifier({key: 'foo', unit: 'year'}));
   }
-  t.is(record.value, 1);
+  t.is(value, '1');
 });
 
-test.serial('grant() ignores other records if namespace is set', async (t) => {
-  let collection = t.context.collection;
-  await collection.deleteMany({});
+test('flush() delets quota', async (t) => {
+  let redis = t.context.redis;
 
-  let quota0 = new Quota({collection});
-  let quota1 = new Quota({collection, namespace: 'bar'});
-  await quota0.setup();
+  let quota = new Quota({redis});
+  await quota.grant({key: 'foo0', unit: 'year', limit: 10});
+  await quota.grant({key: 'foo1', unit: 'year', limit: 10});
+  await quota.grant({key: 'foo2', unit: 'year', limit: 10});
+  await quota.flush({key: 'foo0', unit: 'year'});
+  await quota.flush({key: 'foo2', unit: 'year'});
 
-  try {
-    await quota0.grant({key: 'foo', ttl: 5000, size: 4, inc: 4});
-    await quota1.grant({key: 'foo', ttl: 5000, size: 4, inc: 4});
-    t.pass();
-  } catch(e) {
-    t.fail();
-  }
+  let value0 = await redis.get(quota.getIdentifier({key: 'foo0', unit: 'year'}));
+  let value1 = await redis.get(quota.getIdentifier({key: 'foo1', unit: 'year'}));
+  let value2 = await redis.get(quota.getIdentifier({key: 'foo2', unit: 'year'}));
+  t.is(!!value0, false);
+  t.is(!!value1, true);
+  t.is(!!value2, false);
 });
-
-// test('flush() - all', (t) => {
-//   t.pass();
-// });
-//
-// test('flush() - by ttl', (t) => {
-//   t.pass();
-// });
-//
-// test('flush() - by namespace', (t) => {
-//   t.pass();
-// });

@@ -1,39 +1,33 @@
-![Build Status](https://travis-ci.org/xpepermint/mongodb-quota.svg?branch=master)&nbsp;[![NPM Version](https://badge.fury.io/js/typeable.svg)](https://badge.fury.io/js/typeable)&nbsp;[![Dependency Status](https://gemnasium.com/xpepermint/mongodb-quota.svg)](https://gemnasium.com/xpepermint/mongodb-quota)
+![Build Status](https://travis-ci.org/xpepermint/ioredis-quota.svg?branch=master)&nbsp;[![NPM Version](https://badge.fury.io/js/typeable.svg)](https://badge.fury.io/js/typeable)&nbsp;[![Dependency Status](https://gemnasium.com/xpepermint/ioredis-quota.svg)](https://gemnasium.com/xpepermint/ioredis-quota)
 
-# [mongodb]-quota
+# [ioredis](https://github.com/luin/ioredis)-quota
 
-> General-purpose quota management for MongoDB.
+> General-purpose quota management.
 
 ## Install
 
-This is a module for [Node.js](http://nodejs.org) and is installed via [npm](https://www.npmjs.com/).
+This is a module for [Node.js](http://nodejs.org) and can be installed via [npm](https://www.npmjs.com/). The package depends on [ioredis](https://github.com/luin/ioredis) but it should also work with any other Redis library that supports promises.
 
 ```
-$ npm install --save mongodb-quota
+$ npm install --save ioredis ioredis-quota
 ```
 
 ## Example
 
 ```js
-import {MongoClient} from 'mongodb';
-import {grant} from 'mongodb-quota';
+import {Redis} from 'ioredis';
+import {grant} from 'ioredis-quota';
 
 (async function() {
+  let redis = new Redis();
 
-  let mongo = await MongoClient.connect('mongodb://localhost:27017/test');
-
-  let quota = new Quota({
-    collection: mongo.collection('quotas'),
-    namespace: 'worker1'
-  });
-
+  let quota = new Quota({redis});
   await quota.setup(); // run this only one time
-
   try {
-    quota.grant([ // an array or a single object
-      {key: 'github-api', size: 10, ttl: 60000, start: new Date(), inc: 1}, // 1 min TTL
-      {key: 'github-api', size: 100, ttl: 3600000, inc: 1}, // 1 hour TTL
-      {key: 'github-api', size: 1000, ttl: 86400000, inc: 1} // 1 day TTL
+    quota.grant([ // list of options (atomic)
+      {key: 'github-api', unit: 'minute', limit: 10}, // allow up to 10 grants per minute
+      {key: 'github-api', unit: 'hour', limit: 100}, // allow up to 100 grants per hour
+      {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
     ]);
   } catch(e) {
     console.log(e.continueAt);
@@ -44,41 +38,32 @@ import {grant} from 'mongodb-quota';
 
 ## API
 
-**new Quota(options)**
+**new Quota({redis, prefix})**
 
 > A core class which is used for checking quotas.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
-| collection | Object | Yes | - | MongoDB collection object.
-| namespace | String | No | - | When present, only records with specified namespace will be checked.
+| redis | Object | Yes | - | Redis class instance.
+| prefix | String | No | quota | A string which prefix all the keys.
 
-**quota.flush({key, ttl})**:Promise
-> Removes all key quotas.
+**quota.flush([{key, limit}])**:Promise
+> Atomically removes quotas.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| key | String | Yes | - | Quota key name.
+| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+
+**quota.grant([{key, limit, unit}])**:Promise
+
+> Atomically verifies quota for a key. It throws the QuotaError if the record's increment exceeds the specified size attribute.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota unique name.
-| ttl | Integer | No | - | Only applies to quotas of a specific duration.
-
-**quota.grant([{key, ttl, size, start, inc}])**:Promise
-
-> Verifies quota matching namespace, key and ttl. It throws the QuotaError if the record's increment exceeds the specified size attribute.
-
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| key | String | Yes | - | Quota unique name.
-| ttl | Integer | Yes | - | Quota duration in [ms].
-| size | Integer | Yes | - | The maximum value of the increment (using `inc`).
-| start | Date | No | new Date() | TTL start date.
-| inc | Integer | No | 0 | Increments quota key by `inc` value. Note that in case of an array, affested quotas are automatically decremented.
-
-**quota.setup({background})**:Promise
-> Installs MongoDB collection indexes.
-
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| background | Boolean | No | false | Run long setup commands in background (e.g. index creation).
+| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| limit | Integer | Yes | - | The maximum value of the increment.
 
 ## License (MIT)
 

@@ -1,7 +1,7 @@
 {
-  "name": "mongodb-quota",
-  "version": "0.0.5",
-  "description": "General-purpose quota management for MongoDB",
+  "name": "ioredis-quota",
+  "version": "0.1.0",
+  "description": "General-purpose quota management for ioredis",
   "main": "./dist/index.js",
   "ava": {
     "files": [
@@ -21,13 +21,13 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xpepermint/mongodb-quota.git"
+    "url": "git+https://github.com/xpepermint/ioredis-quota.git"
   },
   "keywords": [
     "quota",
     "quotas",
-    "mongodb",
-    "mongo",
+    "redis",
+    "ioredis",
     "limit",
     "limites",
     "rate",
@@ -35,20 +35,20 @@
     "throttling"
   ],
   "bugs": {
-    "url": "https://github.com/xpepermint/mongodb-quota/issues"
+    "url": "https://github.com/xpepermint/ioredis-quota/issues"
   },
   "author": "Kristijan Sedlak (Xpepermint)",
   "license": "MIT",
-  "homepage": "https://github.com/xpepermint/mongodb-quota#readme",
+  "homepage": "https://github.com/xpepermint/ioredis-quota#readme",
   "devDependencies": {
     "ava": "0.16.0",
     "babel-cli": "6.14.0",
     "babel-preset-node5": "11.1.0",
     "es6-sleep": "2.0.2",
-    "mongodb": "2.2.10"
+    "ioredis": "2.3.0"
   },
   "peerDependencies": {
-    "mongodb": "2.x.x"
+    "ioredis": "2.x.x"
   },
   "dependencies": {
     "moment": "2.15.1"

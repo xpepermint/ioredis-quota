@@ -11,17 +11,36 @@ export class Quota {
   * Class constructor.
   */
 
-  constructor({collection, namespace}) {
-    this.collection = collection;
-    this.namespace = namespace;
+  constructor({redis, prefix='quota'}={}) {
+    this.redis = redis;
+    this.prefix = prefix;
+  }
+
+  /*
+  * Returns an identifier which represents a unique redis key.
+  */
+
+  getIdentifier({key, unit}={}) {
+    let timestamp = moment().startOf(unit).unix();
+    return [this.prefix, timestamp, `<${key}>`].filter(i => !!i).join('-');
   }
 
   /*
   * Removes all key quotas.
   */
 
-  async flush(key, ttl) {
+  async flush(options=[]) {
+    if (!Array.isArray(options)) {
+      options = [options];
+    }
 
+    let dels = [];
+    for (let option of options) {
+      let identifier = this.getIdentifier(option);
+
+      dels.push(['del', identifier]);
+    }
+    await this.redis.multi(dels).exec();
   }
 
   /*
@@ -33,83 +52,48 @@ export class Quota {
       options = [options];
     }
 
-    let rollbackIndex = -1;
+    // increment quota keys and build data
+    let identifiers = [];
+    let grants = [];
+    for (let option of options) {
+      let identifier = this.getIdentifier(option);
+      identifiers.push(identifier);
 
-    // quota check and incrementation
+      let {key, limit, unit} = option;
+      let ttl = moment(0).add(1, unit).unix();
+      grants.push(['set', identifier, '0', 'PX', ttl, 'NX']);
+      grants.push(['incrby', identifier, 1]);
+    }
+    let res = await this.redis.multi(grants).exec();
+    let values = res.map(v => v[1]).splice(1).filter(v => v !== null);
+
+    // check if limits are exceeded
+    let rollback = false;
     for (let i in options) {
-      let {key, ttl, size, start, inc=0} = options[i];
-      let namespace = this.namespace;
-      let expireAt = moment().add(ttl, 'milliseconds').toDate();
+      let value = values[i];
+      let {limit} = options[i];
 
-      let res = await this.collection.findOneAndUpdate({
-        namespace, key, ttl
-      }, {
-        $setOnInsert: {expireAt},
-        $inc: {value: inc}
-      }, {
-        returnOriginal: false,
-        upsert: true
-      });
-
-      let record = res.value;
-      if (!record) {
-        throw new Error('No quota record found for commit');
-      }
-
-      if (record.value > size) {
-        rollbackIndex = i;
+      if (value > limit) {
+        rollback = true;
         break;
       }
     }
 
-    // quota incrementation rollback
-    for (let i=0; i <= rollbackIndex; i++) {
-      let {key, ttl, size, inc=0} = options[i];
-      let namespace = this.namespace;
-      let expireAt = moment().add(ttl, 'milliseconds').toDate();
-
-      let res = await this.collection.findOneAndUpdate({
-        namespace, key, ttl
-      }, {
-        $inc: {value: inc * -1}
-      });
-
-      let record = res.value;
-      if (!record) {
-        throw new Error('No quota record found for rollback');
-      }
+    // limits are granted
+    if (!rollback) {
+      return;
     }
 
-    // throw an error if exceeded
-    if (rollbackIndex !== -1) {
-      let option = options[rollbackIndex];
-      throw new QuotaError(option);
+    // decrement if rollback is requested (it's safe because quota is never checked in the past)
+    let rollbacks = [];
+    for (let identifier of identifiers) {
+      rollbacks.push(['set', identifier, '0', 'PX', 1, 'NX']); // recreate and immediatelly expire but only if the key has already expire
+      rollbacks.push(['incrby', identifier, -1]); // decrement
     }
-  }
+    await this.redis.multi(rollbacks).exec();
 
-  /*
-  * Installs MongoDB collection indexes.
-  */
-
-  async setup({background=false}={}) {
-    await this.collection.createIndex({ // for automatic expiration
-      expireAt: 1
-    }, {
-      expireAfterSeconds: 0,
-      sparse: true,
-      background,
-      name: 'expireAtTTL'
-    });
-    await this.collection.createIndex({ // for speed
-      namespace: 1,
-      key: 1,
-      ttl: 1
-    }, {
-      sparse: true,
-      unique: true,
-      background,
-      name: 'namespaceKeyDurationPerformance'
-    });
+    // throw error
+    throw new QuotaError();
   }
 
 }
