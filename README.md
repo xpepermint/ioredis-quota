@@ -23,7 +23,7 @@ import {Quota} from 'ioredis-quota';
 
   let quota = new Quota({redis});
   try {
-    quota.grant([ // list of options (atomic)
+    await quota.grant([ // list of options (atomic)
       {key: 'github-api', unit: 'minute', limit: 10}, // allow up to 10 grants per minute
       {key: 'github-api', unit: 'hour', limit: 100}, // allow up to 100 grants per hour
       {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
