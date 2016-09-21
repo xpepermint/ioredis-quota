@@ -49,7 +49,7 @@ import {grant} from 'mongodb-quota';
 > A core class which is used for checking quotas.
 
 | Option | Type | Required | Default | Description
-|********|******|**********|*********|************
+|--------|------|----------|---------|------------
 | collection | Object | Yes | - | MongoDB collection object.
 | namespace | String | No | - | When present, only records with specified namespace will be checked.
 
@@ -57,7 +57,7 @@ import {grant} from 'mongodb-quota';
 > Removes all key quotas.
 
 | Option | Type | Required | Default | Description
-|********|******|**********|*********|************
+|--------|------|----------|---------|------------
 | key | String | Yes | - | Quota unique name.
 | ttl | Integer | No | - | Only applies to quotas of a specific duration.
 
@@ -66,7 +66,7 @@ import {grant} from 'mongodb-quota';
 > Verifies key quota or throws the QuotaError.
 
 | Option | Type | Required | Default | Description
-|********|******|**********|*********|************
+|--------|------|----------|---------|------------
 | key | String | Yes | - | Quota unique name.
 | ttl | Integer | Yes | - | Quota duration in [ms].
 | inc | Integer | No | 0 | Increment quota key by `inc` value. Note that in case of an array, affested quotas are automatically decremented.
