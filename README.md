@@ -30,10 +30,10 @@ import {grant} from 'mongodb-quota';
   await quota.setup(); // run this only one time
 
   try {
-    quota.grant('github-api', [ // an array or a single object
-      {ttl: quota.MINUTELY_TTL, inc: 1},
-      {ttl: quota.HOURLY_TTL, inc: 1},
-      {ttl: quota.DAILY_TTL, inc: 1}
+    quota.grant([ // an array or a single object
+      {key: 'github-api', size: 10, ttl: 60000, start: new Date(), inc: 1}, // 1 min TTL
+      {key: 'github-api', size: 100, ttl: 3600000, inc: 1}, // 1 hour TTL
+      {key: 'github-api', size: 1000, ttl: 86400000, inc: 1} // 1 day TTL
     ]);
   } catch(e) {
     console.log(e.continueAt);
@@ -53,7 +53,7 @@ import {grant} from 'mongodb-quota';
 | collection | Object | Yes | - | MongoDB collection object.
 | namespace | String | No | - | When present, only records with specified namespace will be checked.
 
-**quota.flush(key, ttl)**:Promise
+**quota.flush({key, ttl})**:Promise
 > Removes all key quotas.
 
 | Option | Type | Required | Default | Description
@@ -61,15 +61,17 @@ import {grant} from 'mongodb-quota';
 | key | String | Yes | - | Quota unique name.
 | ttl | Integer | No | - | Only applies to quotas of a specific duration.
 
-**quota.grant(key, [{ttl, inc, uot}])**:Promise
+**quota.grant([{key, ttl, size, start, inc}])**:Promise
 
-> Verifies key quota or throws the QuotaError.
+> Verifies quota matching namespace, key and ttl. It throws the QuotaError if the record's increment exceeds the specified size attribute.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota unique name.
 | ttl | Integer | Yes | - | Quota duration in [ms].
-| inc | Integer | No | 0 | Increment quota key by `inc` value. Note that in case of an array, affested quotas are automatically decremented.
+| size | Integer | Yes | - | The maximum value of the increment (using `inc`).
+| start | Date | No | new Date() | TTL start date.
+| inc | Integer | No | 0 | Increments quota key by `inc` value. Note that in case of an array, affested quotas are automatically decremented.
 
 **quota.setup({background})**:Promise
 > Installs MongoDB collection indexes.
