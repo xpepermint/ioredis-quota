@@ -20,9 +20,21 @@ export class Quota {
   * Returns an identifier which represents a unique redis key.
   */
 
-  getIdentifier({key, unit}={}) {
-    let timestamp = moment().startOf(unit).unix();
-    return [this.prefix, timestamp, `<${key}>`].filter(i => !!i).join('-');
+  buildIdentifier({key, unit}={}) {
+    let timestamp = moment().startOf(unit).toDate().getTime();
+    return [this.prefix, timestamp, `<${key}>`].join('-');
+  }
+
+  /*
+  * Return identifier parts.
+  */
+
+  parseIdentifier(identifier) {
+    let [prefix, timestamp, key] = identifier.split('-');
+    timestamp = parseInt(timestamp);
+    key = key.slice(1, -1);
+
+    return {prefix, timestamp, key};
   }
 
   /*
@@ -36,7 +48,7 @@ export class Quota {
 
     let dels = [];
     for (let option of options) {
-      let identifier = this.getIdentifier(option);
+      let identifier = this.buildIdentifier(option);
 
       dels.push(['del', identifier]);
     }
@@ -56,7 +68,7 @@ export class Quota {
     let identifiers = [];
     let grants = [];
     for (let option of options) {
-      let identifier = this.getIdentifier(option);
+      let identifier = this.buildIdentifier(option);
       identifiers.push(identifier);
 
       let {key, limit, unit} = option;
@@ -67,20 +79,26 @@ export class Quota {
     let res = await this.redis.multi(grants).exec();
     let values = res.map(v => v[1]).splice(1).filter(v => v !== null);
 
-    // check if limits are exceeded
-    let rollback = false;
+    // check limits and calculate nextDate (when the quota is reset)
+    let nextDate = null;
     for (let i in options) {
       let value = values[i];
-      let {limit} = options[i];
+      let {limit, unit} = options[i];
+      let identifier = identifiers[i];
 
       if (value > limit) {
-        rollback = true;
+        let {timestamp} = this.parseIdentifier(identifier);
+        let possibleMoment = moment(timestamp).add(1, unit);
+
+        if (nextDate === null || possibleMoment.isBefore(nextDate)) {
+          nextDate = possibleMoment.toDate();
+        }
         break;
       }
     }
 
     // limits are granted
-    if (!rollback) {
+    if (nextDate === null) {
       return;
     }
 
@@ -93,7 +111,7 @@ export class Quota {
     await this.redis.multi(rollbacks).exec();
 
     // throw error
-    throw new QuotaError();
+    throw new QuotaError(nextDate);
   }
 
 }

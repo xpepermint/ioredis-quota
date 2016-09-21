@@ -1,5 +1,5 @@
-exports.QuotaError = class extends Error {
-  constructor(quota, message) {
+export class QuotaError extends Error {
+  constructor(nextDate, message='Grant limit exceeded.') {
     super(message);
 
     Object.defineProperty(this, 'name', {
@@ -12,12 +12,12 @@ exports.QuotaError = class extends Error {
       enumerable: true // expose as object key
     });
 
-    Object.defineProperty(this, 'code', {
-      value: 503,
+    Object.defineProperty(this, 'nextDate', {
+      value: nextDate,
       enumerable: true // expose as object key
     });
 
-    Object.defineProperty(this, 'appliesUntil', {
+    Object.defineProperty(this, 'code', {
       value: 503,
       enumerable: true // expose as object key
     });

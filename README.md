@@ -1,4 +1,4 @@
-![Build Status](https://travis-ci.org/xpepermint/ioredis-quota.svg?branch=master)&nbsp;[![NPM Version](https://badge.fury.io/js/typeable.svg)](https://badge.fury.io/js/typeable)&nbsp;[![Dependency Status](https://gemnasium.com/xpepermint/ioredis-quota.svg)](https://gemnasium.com/xpepermint/ioredis-quota)
+![Build Status](https://travis-ci.org/xpepermint/ioredis-quota.svg?branch=master)&nbsp;[![NPM Version](https://badge.fury.io/js/ioredis-quota.svg)](https://badge.fury.io/js/ioredis-quota)&nbsp;[![Dependency Status](https://gemnasium.com/xpepermint/ioredis-quota.svg)](https://gemnasium.com/xpepermint/ioredis-quota)
 
 # [ioredis](https://github.com/luin/ioredis)-quota
 
@@ -6,7 +6,7 @@
 
 ## Install
 
-This is a module for [Node.js](http://nodejs.org) and can be installed via [npm](https://www.npmjs.com/). The package depends on [ioredis](https://github.com/luin/ioredis) but it should also work with any other Redis library that supports promises.
+This is a module for [Node.js](http://nodejs.org) and can be installed via [npm](https://www.npmjs.com/package/ioredis-quota). The package depends on [ioredis](https://github.com/luin/ioredis) but it should also work with any other [Redis](http://redis.io) library that supports promises.
 
 ```
 $ npm install --save ioredis ioredis-quota
@@ -15,14 +15,13 @@ $ npm install --save ioredis ioredis-quota
 ## Example
 
 ```js
-import {Redis} from 'ioredis';
+import Redis from 'ioredis';
 import {grant} from 'ioredis-quota';
 
 (async function() {
   let redis = new Redis();
 
   let quota = new Quota({redis});
-  await quota.setup(); // run this only one time
   try {
     quota.grant([ // list of options (atomic)
       {key: 'github-api', unit: 'minute', limit: 10}, // allow up to 10 grants per minute
@@ -30,7 +29,7 @@ import {grant} from 'ioredis-quota';
       {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
     ]);
   } catch(e) {
-    console.log(e.continueAt);
+    console.log(e.nextDate);
   }
 
 })().catch(console.error);
@@ -38,7 +37,7 @@ import {grant} from 'ioredis-quota';
 
 ## API
 
-**new Quota({redis, prefix})**
+**Quota({redis, prefix})**
 
 > A core class which is used for checking quotas.
 
@@ -46,6 +45,23 @@ import {grant} from 'ioredis-quota';
 |--------|------|----------|---------|------------
 | redis | Object | Yes | - | Redis class instance.
 | prefix | String | No | quota | A string which prefix all the keys.
+
+**QuotaError(nextDate, message)**
+
+> Quota error class which is thrown when the `grant` method does not succeed.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| nextDate | Date | Yes | - | A moment when quota is reset.
+| message | String | No | Grant limit exceeded | Error message.
+
+**quota.buildIdentifier({key, unit})**:String
+> Builds and returns the final Redis key.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| key | String | Yes | - | Quota key name.
+| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
 **quota.flush([{key, limit}])**:Promise
 > Atomically removes quotas.
@@ -64,6 +80,13 @@ import {grant} from 'ioredis-quota';
 | key | String | Yes | - | Quota unique name.
 | unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 | limit | Integer | Yes | - | The maximum value of the increment.
+
+**quota.parseIdentifier(identifier)**:String
+> Parses the identifier string and returns key data (prefix, timestamp and key).
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| identifier | String | Yes | - | Redis key.
 
 ## License (MIT)
 

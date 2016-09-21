@@ -5,6 +5,8 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.Quota = undefined;
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
 var _moment = require('moment');
 
 var _moment2 = _interopRequireDefault(_moment);
@@ -40,14 +42,33 @@ class Quota {
   * Returns an identifier which represents a unique redis key.
   */
 
-  getIdentifier() {
+  buildIdentifier() {
     var _ref2 = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
 
     let key = _ref2.key;
     let unit = _ref2.unit;
 
-    let timestamp = (0, _moment2.default)().startOf(unit).unix();
-    return [this.prefix, timestamp, `<${ key }>`].filter(i => !!i).join('-');
+    let timestamp = (0, _moment2.default)().startOf(unit).toDate().getTime();
+    return [this.prefix, timestamp, `<${ key }>`].join('-');
+  }
+
+  /*
+  * Return identifier parts.
+  */
+
+  parseIdentifier(identifier) {
+    var _identifier$split = identifier.split('-');
+
+    var _identifier$split2 = _slicedToArray(_identifier$split, 3);
+
+    let prefix = _identifier$split2[0];
+    let timestamp = _identifier$split2[1];
+    let key = _identifier$split2[2];
+
+    timestamp = parseInt(timestamp);
+    key = key.slice(1, -1);
+
+    return { prefix, timestamp, key };
   }
 
   /*
@@ -67,7 +88,7 @@ class Quota {
 
       let dels = [];
       for (let option of options) {
-        let identifier = _this.getIdentifier(option);
+        let identifier = _this.buildIdentifier(option);
 
         dels.push(['del', identifier]);
       }
@@ -94,7 +115,7 @@ class Quota {
       let identifiers = [];
       let grants = [];
       for (let option of options) {
-        let identifier = _this2.getIdentifier(option);
+        let identifier = _this2.buildIdentifier(option);
         identifiers.push(identifier);
 
         let key = option.key;
@@ -112,21 +133,32 @@ class Quota {
         return v !== null;
       });
 
-      // check if limits are exceeded
-      let rollback = false;
+      // check limits and calculate nextDate (when the quota is reset)
+      let nextDate = null;
       for (let i in options) {
         let value = values[i];
-        let limit = options[i].limit;
+        var _options$i = options[i];
+        let limit = _options$i.limit;
+        let unit = _options$i.unit;
 
+        let identifier = identifiers[i];
 
         if (value > limit) {
-          rollback = true;
+          var _parseIdentifier = _this2.parseIdentifier(identifier);
+
+          let timestamp = _parseIdentifier.timestamp;
+
+          let possibleMoment = (0, _moment2.default)(timestamp).add(1, unit);
+
+          if (nextDate === null || possibleMoment.isBefore(nextDate)) {
+            nextDate = possibleMoment.toDate();
+          }
           break;
         }
       }
 
       // limits are granted
-      if (!rollback) {
+      if (nextDate === null) {
         return;
       }
 
@@ -139,7 +171,7 @@ class Quota {
       yield _this2.redis.multi(rollbacks).exec();
 
       // throw error
-      throw new _errors.QuotaError();
+      throw new _errors.QuotaError(nextDate);
     })();
   }
 
