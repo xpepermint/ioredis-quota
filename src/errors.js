@@ -1,5 +1,5 @@
 export class QuotaError extends Error {
-  constructor(nextDate, message='Grant limit exceeded.') {
+  constructor(nextDate, message='Quota limit exceeded.') {
     super(message);
 
     Object.defineProperty(this, 'name', {

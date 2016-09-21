@@ -16,7 +16,7 @@ $ npm install --save ioredis ioredis-quota
 
 ```js
 import Redis from 'ioredis';
-import {grant} from 'ioredis-quota';
+import {Quota} from 'ioredis-quota';
 
 (async function() {
   let redis = new Redis();
@@ -53,7 +53,7 @@ import {grant} from 'ioredis-quota';
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | nextDate | Date | Yes | - | A moment when quota is reset.
-| message | String | No | Grant limit exceeded | Error message.
+| message | String | No | Quota limit exceeded. | Error message.
 
 **quota.buildIdentifier({key, unit})**:String
 > Builds and returns the final Redis key.
@@ -61,7 +61,7 @@ import {grant} from 'ioredis-quota';
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota key name.
-| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
 **quota.flush([{key, limit}])**:Promise
 > Atomically removes quotas.
@@ -69,20 +69,20 @@ import {grant} from 'ioredis-quota';
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota key name.
-| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
 **quota.grant([{key, limit, unit}])**:Promise
 
-> Atomically verifies quota for a key. It throws the QuotaError if the record's increment exceeds the specified size attribute.
+> Atomically verifies quota for a key. It throws the QuotaError if the record's increment exceeds the specified limit attribute.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota unique name.
-| unit | String | Yes | - | Quota period unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 | limit | Integer | Yes | - | The maximum value of the increment.
 
 **quota.parseIdentifier(identifier)**:String
-> Parses the identifier string and returns key data (prefix, timestamp and key).
+> Parses the identifier string and returns key's data (prefix, timestamp and key).
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
