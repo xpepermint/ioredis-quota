@@ -1,0 +1,36 @@
+{
+  "name": "mongodb-quota",
+  "version": "0.0.1",
+  "description": "General-purpose quota management for MongoDB",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xpepermint/mongodb-quota.git"
+  },
+  "keywords": [
+    "quota",
+    "quotas",
+    "mongodb",
+    "mongo",
+    "limit",
+    "limites",
+    "rate",
+    "throttle",
+    "throttling"
+  ],
+  "bugs": {
+    "url": "https://github.com/xpepermint/mongodb-quota/issues"
+  },
+  "author": "Kristijan Sedlak (Xpepermint)",
+  "license": "MIT",
+  "homepage": "https://github.com/xpepermint/mongodb-quota#readme",
+  "devDependencies": {
+    "mongodb": "2.2.10"
+  },
+  "peerDependencies": {
+    "mongodb": "2.x.x"
+  }
+}
