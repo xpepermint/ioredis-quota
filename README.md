@@ -28,6 +28,7 @@ import {Quota} from 'ioredis-quota';
       {key: 'github-api', unit: 'hour', limit: 100}, // allow up to 100 grants per hour
       {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
     ]);
+    // the request to run the github-api request has been granted and we can continue (we have not exceeded the minutely, hourly and daily quotas, they have been incremented for us)
   } catch(e) {
     console.log(e.nextDate);
   }
