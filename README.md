@@ -28,7 +28,7 @@ import {Quota} from 'ioredis-quota';
       {key: 'github-api', unit: 'hour', limit: 100}, // allow up to 100 grants per hour
       {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
     ]);
-    // the request to run the github-api request has been granted and we can continue (we have not exceeded the minutely, hourly and daily quotas, they have been incremented for us)
+    // the request to run the github-api request has been granted and we can continue (we have not exceeded the minutely, hourly and daily quota, they have been incremented for us)
   } catch(e) {
     console.log(e.nextDate);
   }
@@ -40,7 +40,7 @@ import {Quota} from 'ioredis-quota';
 
 **Quota({redis, prefix})**
 
-> A core class which is used for checking quotas.
+> A core class which is used for checking quota.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
@@ -65,7 +65,7 @@ import {Quota} from 'ioredis-quota';
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
 **quota.flush([{key, limit}])**:Promise
-> Atomically removes quotas.
+> Atomically removes quota.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------

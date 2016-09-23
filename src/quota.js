@@ -2,7 +2,7 @@ import moment from 'moment';
 import {QuotaError} from './errors';
 
 /*
-* A core class which is used for checking quotas.
+* A core class which is used for checking quota.
 */
 
 export class Quota {
@@ -38,7 +38,7 @@ export class Quota {
   }
 
   /*
-  * Removes all key quotas.
+  * Removes all key quota.
   */
 
   async flush(options=[]) {

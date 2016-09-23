@@ -1,6 +1,6 @@
 {
   "name": "ioredis-quota",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "General-purpose quota management for ioredis",
   "main": "./dist/index.js",
   "ava": {
