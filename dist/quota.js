@@ -15,10 +15,10 @@ var _errors = require('./errors');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { return step("next", value); }, function (err) { return step("throw", err); }); } } return step("next"); }); }; }
+function _asyncToGenerator(fn) { return function () { var gen = fn.apply(this, arguments); return new Promise(function (resolve, reject) { function step(key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { return Promise.resolve(value).then(function (value) { step("next", value); }, function (err) { step("throw", err); }); } } return step("next"); }); }; }
 
 /*
-* A core class which is used for checking quotas.
+* A core class which is used for checking quota.
 */
 
 class Quota {
@@ -28,7 +28,7 @@ class Quota {
   */
 
   constructor() {
-    var _ref = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var _ref = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
     let redis = _ref.redis;
     var _ref$prefix = _ref.prefix;
@@ -43,7 +43,7 @@ class Quota {
   */
 
   buildIdentifier() {
-    var _ref2 = arguments.length <= 0 || arguments[0] === undefined ? {} : arguments[0];
+    var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
     let key = _ref2.key;
     let unit = _ref2.unit;
@@ -72,7 +72,7 @@ class Quota {
   }
 
   /*
-  * Removes all key quotas.
+  * Removes all key quota.
   */
 
   flush() {
@@ -80,7 +80,7 @@ class Quota {
         _this = this;
 
     return _asyncToGenerator(function* () {
-      let options = _arguments.length <= 0 || _arguments[0] === undefined ? [] : _arguments[0];
+      let options = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : [];
 
       if (!Array.isArray(options)) {
         options = [options];
@@ -105,7 +105,7 @@ class Quota {
         _this2 = this;
 
     return _asyncToGenerator(function* () {
-      let options = _arguments2.length <= 0 || _arguments2[0] === undefined ? [] : _arguments2[0];
+      let options = _arguments2.length > 0 && _arguments2[0] !== undefined ? _arguments2[0] : [];
 
       if (!Array.isArray(options)) {
         options = [options];
