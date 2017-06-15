@@ -1,4 +1,7 @@
 export class QuotaError extends Error {
+  /**
+  * Class constructor.
+  */
   constructor(nextDate, message='Quota limit exceeded.') {
     super(message);
 

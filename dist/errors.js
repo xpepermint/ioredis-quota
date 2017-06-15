@@ -4,6 +4,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 class QuotaError extends Error {
+  /**
+  * Class constructor.
+  */
   constructor(nextDate) {
     let message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'Quota limit exceeded.';
 
