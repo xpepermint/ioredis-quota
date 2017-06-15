@@ -1,6 +1,6 @@
 {
   "name": "ioredis-quota",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "General-purpose quota management for ioredis",
   "main": "./dist/index.js",
   "ava": {
@@ -41,16 +41,16 @@
   "license": "MIT",
   "homepage": "https://github.com/xpepermint/ioredis-quota#readme",
   "devDependencies": {
-    "ava": "0.16.x",
-    "babel-cli": "6.16.x",
-    "babel-preset-node5": "11.1.x",
-    "es6-sleep": "2.0.x",
-    "ioredis": "2.4.x"
+    "ava": "^0.19.1",
+    "babel-cli": "^6.24.1",
+    "babel-preset-node5": "^12.0.1",
+    "es6-sleep": "^2.0.2",
+    "ioredis": "^3.1.1"
   },
   "peerDependencies": {
-    "ioredis": "2.x.x"
+    "ioredis": "^3.1.1"
   },
   "dependencies": {
-    "moment": "2.15.x"
+    "moment": "^2.18.1"
   }
 }

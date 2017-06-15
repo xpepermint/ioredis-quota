@@ -45,11 +45,11 @@ class Quota {
   buildIdentifier() {
     var _ref2 = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
 
-    let key = _ref2.key;
-    let unit = _ref2.unit;
+    let key = _ref2.key,
+        unit = _ref2.unit;
 
     let timestamp = (0, _moment2.default)().startOf(unit).toDate().getTime();
-    return [this.prefix, timestamp, `<${ key }>`].join('-');
+    return [this.prefix, timestamp, `<${key}>`].join('-');
   }
 
   /*
@@ -57,13 +57,12 @@ class Quota {
   */
 
   parseIdentifier(identifier) {
-    var _identifier$split = identifier.split('-');
+    var _identifier$split = identifier.split('-'),
+        _identifier$split2 = _slicedToArray(_identifier$split, 3);
 
-    var _identifier$split2 = _slicedToArray(_identifier$split, 3);
-
-    let prefix = _identifier$split2[0];
-    let timestamp = _identifier$split2[1];
-    let key = _identifier$split2[2];
+    let prefix = _identifier$split2[0],
+        timestamp = _identifier$split2[1],
+        key = _identifier$split2[2];
 
     timestamp = parseInt(timestamp);
     key = key.slice(1, -1);
@@ -118,9 +117,9 @@ class Quota {
         let identifier = _this2.buildIdentifier(option);
         identifiers.push(identifier);
 
-        let key = option.key;
-        let limit = option.limit;
-        let unit = option.unit;
+        let key = option.key,
+            limit = option.limit,
+            unit = option.unit;
 
         let ttl = (0, _moment2.default)(0).add(1, unit).unix();
         grants.push(['set', identifier, '0', 'PX', ttl, 'NX']);
@@ -138,8 +137,8 @@ class Quota {
       for (let i in options) {
         let value = values[i];
         var _options$i = options[i];
-        let limit = _options$i.limit;
-        let unit = _options$i.unit;
+        let limit = _options$i.limit,
+            unit = _options$i.unit;
 
         let identifier = identifiers[i];
 
