@@ -45,21 +45,6 @@ try {
 }
 ```
 
-Use the `run()` method to execute a code block based on the provided limitations.
-
-```js
-try {
-  await quota.run([
-    { key: "my-block", unit: "minute", limit: 10 }, // Allow up to 10 executions per minute.
-    { key: "my-block", unit: "hour", limit: 100 },  // Allow up to 100 executions per hour.
-  ], async () => {
-    // Run your code here.
-  });
-} catch (e) {
-  // We reached the limits. Use `e.nextDate` to handle a retry.
-}
-```
-
 Please check the API section for details.
 
 ## API
@@ -115,17 +100,6 @@ Please check the API section for details.
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | identifier | String | Yes | - | Redis key.
-
-**quota.run([{ key, limit, unit }], block)**: Promise
-
-> Atomically verifies quota for each key and runs the provided `block` or throws the QuotaError if the record's increment exceeds the specified limit attribute.
-
-| Option | Type | Required | Default | Description
-|--------|------|----------|---------|------------
-| key | String | Yes | - | Quota unique name.
-| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
-| limit | Integer | Yes | - | The maximum value of the increment.
-| block | Function, Promise | Yes | - | A code block to run.
 
 ## License (MIT)
 

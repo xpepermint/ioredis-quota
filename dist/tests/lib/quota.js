@@ -114,17 +114,4 @@ ava_1.default("method `flush()` deletes quotas", (t) => __awaiter(this, void 0, 
     t.is(!!value1, true);
     t.is(!!value2, false);
 }));
-ava_1.default.serial("method `run()` executed a code block based on quota settings", (t) => __awaiter(this, void 0, void 0, function* () {
-    let redis = t.context.redis;
-    let quota = new __1.Quota({ redis });
-    let value = 0;
-    let increment = () => __awaiter(this, void 0, void 0, function* () { return value++; });
-    try {
-        yield quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-        yield quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-        yield quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-    }
-    catch (e) { }
-    t.is(value, 2);
-}));
 //# sourceMappingURL=quota.js.map

@@ -117,17 +117,3 @@ test("method `flush()` deletes quotas", async (t) => {
   t.is(!!value1, true);
   t.is(!!value2, false);
 });
-
-test.serial("method `run()` executed a code block based on quota settings", async (t) => {
-  let redis = t.context.redis;
-
-  let quota = new Quota({ redis });
-  let value = 0;
-  let increment = async () => value++;
-  try {
-    await quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-    await quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-    await quota.run({ key: "foo", unit: "minute", limit: 2 }, increment);
-  } catch (e) {}
-  t.is(value, 2);
-});

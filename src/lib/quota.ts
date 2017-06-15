@@ -152,15 +152,4 @@ export class Quota {
     // throw error
     throw new QuotaError(nextDate);
   }
-
-  /**
-   * Atomically verifies quota for each key and runs the provided `block`.
-   */
-  public async run(
-    options: (RateLimit[] | RateLimit) = [],
-    block: (() => any | Promise<any>),
-  ) {
-    await this.grant(options);
-    return Promise.resolve().then(() => block());
-  }
 }

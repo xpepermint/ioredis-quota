@@ -83,12 +83,6 @@ class Quota {
             throw new errors_1.QuotaError(nextDate);
         });
     }
-    run(options = [], block) {
-        return __awaiter(this, void 0, void 0, function* () {
-            yield this.grant(options);
-            return Promise.resolve().then(() => block());
-        });
-    }
 }
 exports.Quota = Quota;
 //# sourceMappingURL=quota.js.map
