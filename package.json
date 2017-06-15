@@ -3,21 +3,21 @@
   "version": "0.3.0",
   "description": "General-purpose quota management for ioredis",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "ava": {
     "files": [
-      "./tests/*.js",
-      "./tests/**/*.js"
+      "./dist/tests/*.js",
+      "./dist/tests/**/*.js"
     ],
     "concurrency": 1,
     "failFast": true
   },
   "scripts": {
     "clean": "rm -Rf ./dist",
-    "prebuild": "npm run clean; mkdir -p ./dist",
-    "build": "babel ./src --out-dir ./dist --copy-files",
+    "build": "npm run clean; tsc",
+    "lint": "tslint 'src/**/*.ts?(x)'",
     "prepublish": "npm run build",
-    "pretest": "npm run build",
-    "test": "ava"
+    "test": "npm run build && ava"
   },
   "repository": {
     "type": "git",
@@ -41,11 +41,13 @@
   "license": "MIT",
   "homepage": "https://github.com/xpepermint/ioredis-quota#readme",
   "devDependencies": {
+    "@types/moment": "2.13.0",
+    "@types/node": "7.0.31",
     "ava": "^0.19.1",
-    "babel-cli": "^6.24.1",
-    "babel-preset-node5": "^12.0.1",
     "es6-sleep": "^2.0.2",
-    "ioredis": "^3.1.1"
+    "ioredis": "^3.1.1",
+    "tslint": "5.4.3",
+    "typescript": "2.3.4"
   },
   "peerDependencies": {
     "ioredis": "^3.1.1"

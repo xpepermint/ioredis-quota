@@ -4,41 +4,67 @@
 
 > General-purpose quota management.
 
+This NPM package is a simple quota manager with a simple, promisified API. It's open-source and it's written with  [TypeScript](https://www.typescriptlang.org).
+
+The source code is available on [GitHub](https://github.com/xpepermint/ioredis-quota) where you can also find our [issue tracker](https://github.com/xpepermint/ioredis-quota/blob/master/issues).
+
 ## Install
 
-This is a module for [Node.js](http://nodejs.org) and can be installed via [npm](https://www.npmjs.com/package/ioredis-quota). The package depends on [ioredis](https://github.com/luin/ioredis) but it should also work with any other [Redis](http://redis.io) library that supports promises.
+The package depends on [ioredis](https://github.com/luin/ioredis) but it should also work with any other [Redis](http://redis.io) library that supports promises.
 
 ```
 $ npm install --save ioredis ioredis-quota
 ```
 
-## Example
+## Getting Started
+
+To make the code clean, the examples are written in [TypeScript](https://www.typescriptlang.org/).
+
+You start by some initialization code.
 
 ```js
-import Redis from 'ioredis';
-import {Quota} from 'ioredis-quota';
+import Redis from "ioredis";
+import { Quota } from "ioredis-quota";
 
-(async function() {
-  let redis = new Redis();
-
-  let quota = new Quota({redis});
-  try {
-    await quota.grant([ // list of options (atomic)
-      {key: 'github-api', unit: 'minute', limit: 10}, // allow up to 10 grants per minute
-      {key: 'github-api', unit: 'hour', limit: 100}, // allow up to 100 grants per hour
-      {key: 'github-api', unit: 'day', limit: 1000} // allow up to 1000 grants per day
-    ]);
-    // the request to run the github-api request has been granted and we can continue (we have not exceeded the minutely, hourly and daily quota, they have been incremented for us)
-  } catch(e) {
-    console.log(e.nextDate);
-  }
-
-})().catch(console.error);
+const redis = new Redis();
+const quota = new Quota({ redis });
 ```
+
+Use the `grant()` method to verify that the request you are making does not exceed the rate limit.
+
+```js
+try {
+  await quota.grant([ // List of options (atomic).
+    { key: "github-api", unit: "minute", limit: 10 }, // Allow up to 10 requests per minute.
+    { key: "github-api", unit: "hour", limit: 100 },  // Allow up to 100 requests per hour.
+    { key: "github-api", unit: "day", limit: 1000 },  // Allow up to 1000 requests per day.
+  ]);
+  // We have not exceeded the minutely, hourly nor daily quota so we can execute a request.
+} catch (e) {
+  // We reached the limits. Use `e.nextDate` to handle a retry.
+}
+```
+
+Use the `run()` method to execute a code block based on the provided limitations.
+
+```js
+try {
+  await quota.run([
+    { key: "my-block", unit: "minute", limit: 10 }, // Allow up to 10 executions per minute.
+    { key: "my-block", unit: "hour", limit: 100 },  // Allow up to 100 executions per hour.
+  ], async () => {
+    // Run your code here.
+  });
+} catch (e) {
+  // We reached the limits. Use `e.nextDate` to handle a retry.
+}
+```
+
+Please check the API section for details.
 
 ## API
 
-**Quota({redis, prefix})**
+**Quota({ redis, prefix })**
 
 > A core class which is used for checking quota.
 
@@ -56,7 +82,7 @@ import {Quota} from 'ioredis-quota';
 | nextDate | Date | Yes | - | A moment when quota is reset.
 | message | String | No | Quota limit exceeded. | Error message.
 
-**quota.buildIdentifier({key, unit})**:String
+**quota.buildIdentifier({ key, unit })**: String
 > Builds and returns the final Redis key.
 
 | Option | Type | Required | Default | Description
@@ -64,7 +90,7 @@ import {Quota} from 'ioredis-quota';
 | key | String | Yes | - | Quota key name.
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
-**quota.flush([{key, limit}])**:Promise
+**quota.flush([{ key, limit }])**: Promise
 > Atomically removes quota.
 
 | Option | Type | Required | Default | Description
@@ -72,9 +98,9 @@ import {Quota} from 'ioredis-quota';
 | key | String | Yes | - | Quota key name.
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
-**quota.grant([{key, limit, unit}])**:Promise
+**quota.grant([{ key, limit, unit }])**: Promise
 
-> Atomically verifies quota for a key. It throws the QuotaError if the record's increment exceeds the specified limit attribute.
+> Atomically verifies quota for each key and throws the QuotaError if the record's increment exceeds the specified limit attribute.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
@@ -82,12 +108,24 @@ import {Quota} from 'ioredis-quota';
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 | limit | Integer | Yes | - | The maximum value of the increment.
 
-**quota.parseIdentifier(identifier)**:String
+**quota.parseIdentifier(identifier)**: String
+
 > Parses the identifier string and returns key's data (prefix, timestamp and key).
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | identifier | String | Yes | - | Redis key.
+
+**quota.run([{ key, limit, unit }], block)**: Promise
+
+> Atomically verifies quota for each key and runs the provided `block` or throws the QuotaError if the record's increment exceeds the specified limit attribute.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| key | String | Yes | - | Quota unique name.
+| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| limit | Integer | Yes | - | The maximum value of the increment.
+| block | Function, Promise | Yes | - | A code block to run.
 
 ## License (MIT)
 

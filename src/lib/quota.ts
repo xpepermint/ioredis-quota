@@ -1,14 +1,46 @@
-import moment from "moment";
+import * as moment from "moment";
 import { QuotaError } from "./errors";
+
+/**
+ * Available units.
+ */
+export type TimeUnit = "second" | "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year";
+
+/**
+ * Interface describing rate limit object.
+ */
+export interface RateLimit {
+  /**
+   * Limit identification.
+   */
+  key: string;
+  /**
+   * Type of limit.
+   */
+  unit: TimeUnit;
+  /**
+   * The maximum value of the increment.
+   */
+  limit?: number;
+}
 
 /**
 * A core class which is used for checking quota.
 */
 export class Quota {
+  protected redis: any;
+  protected prefix: string;
+
   /**
   * Class constructor.
   */
-  constructor({ redis, prefix = "quota" } = {}) {
+  public constructor({
+    redis,
+    prefix = "quota",
+  }: {
+    redis: any;
+    prefix?: string;
+  }) {
     this.redis = redis;
     this.prefix = prefix;
   }
@@ -16,7 +48,13 @@ export class Quota {
   /**
   * Returns an identifier which represents a unique redis key.
   */
-  buildIdentifier({ key, unit } = {}) {
+  public buildIdentifier({
+    key,
+    unit
+  }: {
+    key: string;
+    unit: TimeUnit;
+  }) {
     let timestamp = moment().startOf(unit).toDate().getTime();
     return [this.prefix, timestamp, `<${key}>`].join("-");
   }
@@ -24,18 +62,24 @@ export class Quota {
   /**
   * Return identifier parts.
   */
-  parseIdentifier(identifier) {
-    let [prefix, timestamp, key] = identifier.split("-");
-    timestamp = parseInt(timestamp);
-    key = key.slice(1, -1);
+  public parseIdentifier(
+    identifier: string
+  ) {
+    let parts = identifier.split("-");
 
-    return { prefix, timestamp, key };
+    return {
+      prefix: parts[0],
+      timestamp: parseInt(parts[1]),
+      key: parts[2].slice(1, -1),
+    };
   }
 
   /**
   * Removes all key quota.
   */
-  async flush(options = []) {
+  public async flush(
+    options: (RateLimit[] | RateLimit) = []
+  ) {
     if (!Array.isArray(options)) {
       options = [options];
     }
@@ -52,7 +96,9 @@ export class Quota {
   /**
   * Verifies key quota or throws the QuotaError.
   */
-  async grant(options = []) {
+  public async grant(
+    options: (RateLimit[] | RateLimit) = []
+  ) {
     if (!Array.isArray(options)) {
       options = [options];
     }
@@ -64,7 +110,7 @@ export class Quota {
       let identifier = this.buildIdentifier(option);
       identifiers.push(identifier);
 
-      let { key, limit, unit } = option;
+      let { key, limit = 1, unit } = option;
       let ttl = moment(0).add(1, unit).unix() * 1000;
       grants.push(["set", identifier, "0", "PX", ttl, "NX"]);
       grants.push(["incrby", identifier, 1]);
@@ -105,5 +151,16 @@ export class Quota {
 
     // throw error
     throw new QuotaError(nextDate);
+  }
+
+  /**
+   * Atomically verifies quota for each key and runs the provided `block`.
+   */
+  public async run(
+    options: (RateLimit[] | RateLimit) = [],
+    block: (() => any | Promise<any>),
+  ) {
+    await this.grant(options);
+    return Promise.resolve().then(() => block());
   }
 }
