@@ -117,3 +117,15 @@ test("method `flush()` deletes quotas", async (t) => {
   t.is(!!value1, true);
   t.is(!!value2, false);
 });
+
+test.serial("method `schedule()` return the next available date", async (t) => {
+  let redis = t.context.redis;
+
+  let quota = new Quota({ redis });
+  let error = null;
+
+  await quota.schedule({key: "foo", unit: "minute", limit: 1});
+  let date = await quota.schedule({key: "foo", unit: "minute", limit: 1});
+
+  t.is(moment(date).diff(moment().startOf("minute")) === 60000, true);
+});

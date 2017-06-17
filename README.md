@@ -45,7 +45,15 @@ try {
 }
 ```
 
-Please check the API section for details.
+Or use the `schedule()` method which uses the `grant()` method and returns the next appropriate date for execution (`e.nextDate`) instead of throwing an error.
+
+```js
+const nextDate = await quota.schedule([ // List of options (atomic).
+  { key: "github-api", unit: "minute", limit: 10 }, // Allow up to 10 requests per minute.
+  { key: "github-api", unit: "hour", limit: 100 },  // Allow up to 100 requests per hour.
+  { key: "github-api", unit: "day", limit: 1000 },  // Allow up to 1000 requests per day.
+]); // -> Sat Jun 17 14:58:57 CEST 2017
+```
 
 ## API
 
@@ -83,7 +91,7 @@ Please check the API section for details.
 | key | String | Yes | - | Quota key name.
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
-**quota.grant([{ key, limit, unit }])**: Promise
+**quota.grant([{ key, limit, unit }])**: Promise<void>
 
 > Atomically verifies quota for each key and throws the QuotaError if the record's increment exceeds the specified limit attribute.
 
@@ -100,6 +108,16 @@ Please check the API section for details.
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | identifier | String | Yes | - | Redis key.
+
+**quota.schedule([{ key, limit, unit }])**: Promise<Date>
+
+> Atomically verifies quota for each key and returns the next available date.
+
+| Option | Type | Required | Default | Description
+|--------|------|----------|---------|------------
+| key | String | Yes | - | Quota unique name.
+| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| limit | Integer | Yes | - | The maximum value of the increment.
 
 ## License (MIT)
 

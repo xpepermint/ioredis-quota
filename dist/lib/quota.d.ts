@@ -22,4 +22,5 @@ export declare class Quota {
     };
     flush(options?: (RateLimit[] | RateLimit)): Promise<void>;
     grant(options?: (RateLimit[] | RateLimit)): Promise<void>;
+    schedule(options?: (RateLimit[] | RateLimit)): Promise<Date>;
 }

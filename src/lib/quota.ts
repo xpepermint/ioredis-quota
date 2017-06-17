@@ -152,4 +152,22 @@ export class Quota {
     // throw error
     throw new QuotaError(nextDate);
   }
+
+  /**
+  * Verifies quota for each key and returns the next available date.
+  */
+  public async schedule(
+    options: (RateLimit[] | RateLimit) = []
+  ) {
+    try {
+      await this.grant(options);
+      return new Date();
+    } catch (e) {
+      if (e instanceof QuotaError) {
+        return e.nextDate;
+      } else {
+        throw e;
+      }
+    }
+  }
 }

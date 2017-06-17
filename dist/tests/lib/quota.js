@@ -114,4 +114,12 @@ ava_1.default("method `flush()` deletes quotas", (t) => __awaiter(this, void 0, 
     t.is(!!value1, true);
     t.is(!!value2, false);
 }));
+ava_1.default.serial("method `schedule()` return the next available date", (t) => __awaiter(this, void 0, void 0, function* () {
+    let redis = t.context.redis;
+    let quota = new __1.Quota({ redis });
+    let error = null;
+    yield quota.schedule({ key: "foo", unit: "minute", limit: 1 });
+    let date = yield quota.schedule({ key: "foo", unit: "minute", limit: 1 });
+    t.is(moment(date).diff(moment().startOf("minute")) === 60000, true);
+}));
 //# sourceMappingURL=quota.js.map

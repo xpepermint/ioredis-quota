@@ -3,6 +3,14 @@
 */
 export class QuotaError extends Error {
   /**
+   * Next available date.
+   */
+  readonly nextDate: Date;
+  /**
+   * Error code.
+   */
+  readonly code: number;
+  /**
   * Class constructor.
   */
   public constructor(nextDate: Date, message = "Quota limit exceeded.") {
