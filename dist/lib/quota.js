@@ -11,13 +11,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const moment = require("moment");
 const errors_1 = require("./errors");
 class Quota {
-    constructor({ redis, prefix = "quota", }) {
+    constructor({ redis, prefix = "quota", rates = [] }) {
         this.redis = redis;
         this.prefix = prefix;
+        this.rates = rates;
     }
-    buildIdentifier({ key, unit }) {
-        let timestamp = moment().startOf(unit).toDate().getTime();
-        return [this.prefix, timestamp, `<${key}>`].join("-");
+    buildIdentifier(ident) {
+        let timestamp = moment().startOf(ident.unit).toDate().getTime();
+        return [this.prefix, timestamp, `<${ident.key}>`].join("-");
     }
     parseIdentifier(identifier) {
         let parts = identifier.split("-");
@@ -27,42 +28,45 @@ class Quota {
             key: parts[2].slice(1, -1),
         };
     }
-    flush(options = []) {
+    flush(idents = []) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!Array.isArray(options)) {
-                options = [options];
+            if (!Array.isArray(idents)) {
+                idents = [idents];
+            }
+            if (idents.length === 0) {
+                idents = this.rates.concat([]);
             }
             let dels = [];
-            for (let option of options) {
-                let identifier = this.buildIdentifier(option);
+            for (let ident of idents) {
+                let identifier = this.buildIdentifier(ident);
                 dels.push(["del", identifier]);
             }
             yield this.redis.multi(dels).exec();
         });
     }
-    grant(options = []) {
+    grant(rates = []) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!Array.isArray(options)) {
-                options = [options];
+            if (!Array.isArray(rates)) {
+                rates = [rates];
             }
+            rates = this.rates.concat(rates);
             let identifiers = [];
             let grants = [];
-            for (let option of options) {
-                let identifier = this.buildIdentifier(option);
+            for (let rate of rates) {
+                let identifier = this.buildIdentifier(rate);
                 identifiers.push(identifier);
-                let { key, limit = 1, unit } = option;
-                let ttl = moment(0).add(1, unit).unix() * 1000;
+                let ttl = moment(0).add(1, rate.unit).unix() * 1000;
                 grants.push(["set", identifier, "0", "PX", ttl, "NX"]);
                 grants.push(["incrby", identifier, 1]);
             }
             let res = yield this.redis.multi(grants).exec();
             let values = res.map(v => v[1]).splice(1).filter(v => v !== null);
             let nextDate = null;
-            for (let i in options) {
+            for (let i in rates) {
                 let value = values[i];
-                let { limit, unit } = options[i];
+                let { limit, unit } = rates[i];
                 let identifier = identifiers[i];
-                if (value > limit) {
+                if (!(value <= limit)) {
                     let { timestamp } = this.parseIdentifier(identifier);
                     let possibleMoment = moment(timestamp).add(1, unit);
                     if (nextDate === null || possibleMoment.isBefore(nextDate)) {
@@ -83,10 +87,10 @@ class Quota {
             throw new errors_1.QuotaError(nextDate);
         });
     }
-    schedule(options = []) {
+    schedule(rates = []) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                yield this.grant(options);
+                yield this.grant(rates);
                 return new Date();
             }
             catch (e) {

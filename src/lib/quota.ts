@@ -7,6 +7,20 @@ import { QuotaError } from "./errors";
 export type TimeUnit = "second" | "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 /**
+ * Interface describing rate limit identifier.
+ */
+export interface RateIdent {
+  /**
+   * Limit identification.
+   */
+  key: string;
+  /**
+   * Type of limit.
+   */
+  unit: TimeUnit;
+}
+
+/**
  * Interface describing rate limit object.
  */
 export interface RateLimit {
@@ -21,15 +35,25 @@ export interface RateLimit {
   /**
    * The maximum value of the increment.
    */
-  limit?: number;
+  limit: number;
 }
 
 /**
 * A core class which is used for checking quota.
 */
 export class Quota {
-  protected redis: any;
-  protected prefix: string;
+  /**
+   * Instance of promisified Redis client.
+   */
+  readonly redis: any;
+  /**
+   * A string which prefix all the keys.
+   */
+  readonly prefix: string;
+  /**
+   * Default quota identifier(s).
+   */
+  readonly rates: RateLimit[];
 
   /**
   * Class constructor.
@@ -37,36 +61,34 @@ export class Quota {
   public constructor({
     redis,
     prefix = "quota",
+    rates = []
   }: {
     redis: any;
     prefix?: string;
+    rates?: RateLimit[];
   }) {
     this.redis = redis;
     this.prefix = prefix;
+    this.rates = rates;
   }
 
   /**
   * Returns an identifier which represents a unique redis key.
   */
-  public buildIdentifier({
-    key,
-    unit
-  }: {
-    key: string;
-    unit: TimeUnit;
-  }) {
-    let timestamp = moment().startOf(unit).toDate().getTime();
-    return [this.prefix, timestamp, `<${key}>`].join("-");
+  public buildIdentifier(
+    ident: RateIdent,
+  ) {
+    let timestamp = moment().startOf(ident.unit).toDate().getTime();
+    return [this.prefix, timestamp, `<${ident.key}>`].join("-");
   }
 
   /**
   * Return identifier parts.
   */
   public parseIdentifier(
-    identifier: string
+    identifier: string,
   ) {
     let parts = identifier.split("-");
-
     return {
       prefix: parts[0],
       timestamp: parseInt(parts[1]),
@@ -78,16 +100,22 @@ export class Quota {
   * Removes all key quota.
   */
   public async flush(
-    options: (RateLimit[] | RateLimit) = []
+    idents: (RateIdent[] | RateIdent) = []
   ) {
-    if (!Array.isArray(options)) {
-      options = [options];
+    // arrays on a single object is permitted
+    if (!Array.isArray(idents)) {
+      idents = [idents];
     }
 
-    let dels = [];
-    for (let option of options) {
-      let identifier = this.buildIdentifier(option);
+    // if no rates are specified, all are included
+    if (idents.length === 0) {
+      idents = this.rates.concat([]);
+    }
 
+    // removing identifiers
+    let dels = [];
+    for (let ident of idents) {
+      let identifier = this.buildIdentifier(ident);
       dels.push(["del", identifier]);
     }
     await this.redis.multi(dels).exec();
@@ -97,21 +125,24 @@ export class Quota {
   * Verifies key quota or throws the QuotaError.
   */
   public async grant(
-    options: (RateLimit[] | RateLimit) = []
+    rates: (RateLimit[] | RateLimit) = []
   ) {
-    if (!Array.isArray(options)) {
-      options = [options];
+    // arrays on a single object is permitted
+    if (!Array.isArray(rates)) {
+      rates = [rates];
     }
+
+    // appending class rates with additional ones
+    rates = this.rates.concat(rates);
 
     // increment quota keys and build data
     let identifiers = [];
     let grants = [];
-    for (let option of options) {
-      let identifier = this.buildIdentifier(option);
+    for (let rate of rates) {
+      let identifier = this.buildIdentifier(rate);
       identifiers.push(identifier);
 
-      let { key, limit = 1, unit } = option;
-      let ttl = moment(0).add(1, unit).unix() * 1000;
+      let ttl = moment(0).add(1, rate.unit).unix() * 1000;
       grants.push(["set", identifier, "0", "PX", ttl, "NX"]);
       grants.push(["incrby", identifier, 1]);
     }
@@ -120,12 +151,12 @@ export class Quota {
 
     // check limits and calculate nextDate (when the quota is reset)
     let nextDate = null;
-    for (let i in options) {
+    for (let i in rates) {
       let value = values[i];
-      let { limit, unit } = options[i];
+      let { limit, unit } = rates[i];
       let identifier = identifiers[i];
 
-      if (value > limit) {
+      if (!(value <= limit)) {
         let { timestamp } = this.parseIdentifier(identifier);
         let possibleMoment = moment(timestamp).add(1, unit);
 
@@ -157,10 +188,10 @@ export class Quota {
   * Verifies quota for each key and returns the next available date.
   */
   public async schedule(
-    options: (RateLimit[] | RateLimit) = []
+    rates: (RateLimit[] | RateLimit) = []
   ) {
     try {
-      await this.grant(options);
+      await this.grant(rates);
       return new Date();
     } catch (e) {
       if (e instanceof QuotaError) {

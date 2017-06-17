@@ -26,20 +26,21 @@ You start by some initialization code.
 import Redis from "ioredis";
 import { Quota } from "ioredis-quota";
 
-const redis = new Redis();
-const quota = new Quota({ redis });
+const quota = new Quota({
+  redis: new Redis(),
+  rates: [
+    { key: "github-api", unit: "minute", limit: 10 }, // Allow up to 10 requests per minute.
+    { key: "github-api", unit: "hour", limit: 100 },  // Allow up to 100 requests per hour.
+  ]
+});
 ```
 
 Use the `grant()` method to verify that the request you are making does not exceed the rate limit.
 
 ```js
 try {
-  await quota.grant([ // List of options (atomic).
-    { key: "github-api", unit: "minute", limit: 10 }, // Allow up to 10 requests per minute.
-    { key: "github-api", unit: "hour", limit: 100 },  // Allow up to 100 requests per hour.
-    { key: "github-api", unit: "day", limit: 1000 },  // Allow up to 1000 requests per day.
-  ]);
-  // We have not exceeded the minutely, hourly nor daily quota so we can execute a request.
+  await quota.grant(); // Grant 10 requests per minute and 100 requests per hour.
+  // We have not exceeded the minutely nor daily quota so we can execute a request.
 } catch (e) {
   // We reached the limits. Use `e.nextDate` to handle a retry.
 }
@@ -48,16 +49,12 @@ try {
 Or use the `schedule()` method which uses the `grant()` method and returns the next appropriate date for execution (`e.nextDate`) instead of throwing an error.
 
 ```js
-const nextDate = await quota.schedule([ // List of options (atomic).
-  { key: "github-api", unit: "minute", limit: 10 }, // Allow up to 10 requests per minute.
-  { key: "github-api", unit: "hour", limit: 100 },  // Allow up to 100 requests per hour.
-  { key: "github-api", unit: "day", limit: 1000 },  // Allow up to 1000 requests per day.
-]); // -> Sat Jun 17 14:58:57 CEST 2017
+const nextDate = await quota.schedule(); // => Sat Jun 17 14:58:57 CEST 2017
 ```
 
 ## API
 
-**Quota({ redis, prefix })**
+**Quota({ redis, prefix, rates })**
 
 > A core class which is used for checking quota.
 
@@ -65,6 +62,10 @@ const nextDate = await quota.schedule([ // List of options (atomic).
 |--------|------|----------|---------|------------
 | redis | Object | Yes | - | Redis class instance.
 | prefix | String | No | quota | A string which prefix all the keys.
+| rates | Object[] | No | [] | List of quota definitions.
+| rates.key | String | Yes | - | Quota unique name.
+| rates.unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| rates.limit | Integer | Yes | - | The maximum value of the increment.
 
 **QuotaError(nextDate, message)**
 
@@ -76,6 +77,7 @@ const nextDate = await quota.schedule([ // List of options (atomic).
 | message | String | No | Quota limit exceeded. | Error message.
 
 **quota.buildIdentifier({ key, unit })**: String
+
 > Builds and returns the final Redis key.
 
 | Option | Type | Required | Default | Description
@@ -83,23 +85,25 @@ const nextDate = await quota.schedule([ // List of options (atomic).
 | key | String | Yes | - | Quota key name.
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
-**quota.flush([{ key, limit }])**: Promise
-> Atomically removes quota.
+**quota.flush([{ key, unit }])**: Promise
+
+> Atomically removes quota. Note that if no attributes are specified then all identifiers are deleted.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
 | key | String | Yes | - | Quota key name.
 | unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
 
-**quota.grant([{ key, limit, unit }])**: Promise<void>
+**quota.grant(rates)**: Promise<void>
 
-> Atomically verifies quota for each key and throws the QuotaError if the record's increment exceeds the specified limit attribute.
+> Atomically verifies quota for each rate and throws the QuotaError if the rate's value exceeds the specified limit attribute. Please note that this method will increment the counter for each defined rate by one per unit (if you specify two rate objects with the same unit this means that this unit will be incremented by 2).
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
-| key | String | Yes | - | Quota unique name.
-| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
-| limit | Integer | Yes | - | The maximum value of the increment.
+| rates | Object, Object[] | No | [] | List of quota definitions (appends class rates).
+| rates.key | String | Yes | - | Quota unique name.
+| rates.unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| rates.limit | Integer | Yes | - | The maximum value of the increment.
 
 **quota.parseIdentifier(identifier)**: String
 
@@ -109,15 +113,16 @@ const nextDate = await quota.schedule([ // List of options (atomic).
 |--------|------|----------|---------|------------
 | identifier | String | Yes | - | Redis key.
 
-**quota.schedule([{ key, limit, unit }])**: Promise<Date>
+**quota.schedule(rates)**: Promise<Date>
 
-> Atomically verifies quota for each key and returns the next available date.
+> Atomically verifies quota for each rate and returns the next available date.
 
 | Option | Type | Required | Default | Description
 |--------|------|----------|---------|------------
-| key | String | Yes | - | Quota unique name.
-| unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
-| limit | Integer | Yes | - | The maximum value of the increment.
+| rates | Object, Object[] | No | [] | List of quota definitions (appends class rates).
+| rates.key | String | Yes | - | Quota unique name.
+| rates.unit | String | Yes | - | Quota unit (`second`, `minute`, `hour`, `day`, `week`, `month`, `quarter` or `year`).
+| rates.limit | Integer | Yes | - | The maximum value of the increment.
 
 ## License (MIT)
 

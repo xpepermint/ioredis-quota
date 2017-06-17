@@ -41,15 +41,35 @@ ava_1.default.serial("method `parseIdentifier()` parses redis key", (t) => __awa
     });
 }));
 ava_1.default.serial("method `grant()` throws error when quota size is exceeded", (t) => __awaiter(this, void 0, void 0, function* () {
-    let redis = t.context.redis;
-    let quota = new __1.Quota({ redis });
+    let quota = new __1.Quota({
+        redis: t.context.redis,
+        rates: [{ key: "foo", unit: "minute", limit: 2 }],
+    });
+    let times = 0;
     let error = null;
     try {
-        yield quota.grant({ key: "foo", unit: "minute", limit: 2 });
-        yield quota.grant([
-            { key: "foo", unit: "minute", limit: 2 },
-            { key: "foo", unit: "minute", limit: 2 }
-        ]);
+        yield quota.grant();
+        times++;
+        yield quota.grant();
+        times++;
+        yield quota.grant();
+        times++;
+    }
+    catch (e) {
+        error = e;
+    }
+    t.is(times, 2);
+    t.is(error instanceof __1.QuotaError, true);
+}));
+ava_1.default.serial("method `grant()` accepts additional rates as argument", (t) => __awaiter(this, void 0, void 0, function* () {
+    let redis = t.context.redis;
+    let quota = new __1.Quota({
+        redis,
+        rates: [{ key: "foo", unit: "second", limit: 2 }],
+    });
+    let error = null;
+    try {
+        yield quota.grant({ key: "foo", unit: "minute", limit: 0 });
     }
     catch (e) {
         error = e;
@@ -58,12 +78,15 @@ ava_1.default.serial("method `grant()` throws error when quota size is exceeded"
 }));
 ava_1.default.serial("method `grant()` error provides nextDate value", (t) => __awaiter(this, void 0, void 0, function* () {
     let redis = t.context.redis;
-    let quota = new __1.Quota({ redis });
+    let quota = new __1.Quota({
+        redis,
+        rates: [{ key: "foo", unit: "month", limit: 1 }],
+    });
     let expectedMoment = moment().startOf("month").add(1, "month");
     let nextDate = null;
     try {
-        yield quota.grant({ key: "foo", unit: "month", limit: 1 });
-        yield quota.grant({ key: "foo", unit: "month", limit: 1 });
+        yield quota.grant();
+        yield quota.grant();
     }
     catch (e) {
         nextDate = e.nextDate;
@@ -72,11 +95,14 @@ ava_1.default.serial("method `grant()` error provides nextDate value", (t) => __
 }));
 ava_1.default.serial("method `grant()` uses TTL for determing current quota size", (t) => __awaiter(this, void 0, void 0, function* () {
     let redis = t.context.redis;
-    let quota = new __1.Quota({ redis });
+    let quota = new __1.Quota({
+        redis,
+        rates: [{ key: "foo", unit: "second", limit: 1 }],
+    });
     try {
-        yield quota.grant({ key: "foo", unit: "second", limit: 1 });
+        yield quota.grant();
         yield es6_sleep_1.promise(1001);
-        yield quota.grant({ key: "foo", unit: "second", limit: 1 });
+        yield quota.grant();
         t.pass();
     }
     catch (e) {

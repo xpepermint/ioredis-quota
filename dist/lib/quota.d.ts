@@ -1,26 +1,29 @@
 export declare type TimeUnit = "second" | "minute" | "hour" | "day" | "week" | "month" | "quarter" | "year";
+export interface RateIdent {
+    key: string;
+    unit: TimeUnit;
+}
 export interface RateLimit {
     key: string;
     unit: TimeUnit;
-    limit?: number;
+    limit: number;
 }
 export declare class Quota {
-    protected redis: any;
-    protected prefix: string;
-    constructor({redis, prefix}: {
+    readonly redis: any;
+    readonly prefix: string;
+    readonly rates: RateLimit[];
+    constructor({redis, prefix, rates}: {
         redis: any;
         prefix?: string;
+        rates?: RateLimit[];
     });
-    buildIdentifier({key, unit}: {
-        key: string;
-        unit: TimeUnit;
-    }): string;
+    buildIdentifier(ident: RateIdent): string;
     parseIdentifier(identifier: string): {
         prefix: string;
         timestamp: number;
         key: string;
     };
-    flush(options?: (RateLimit[] | RateLimit)): Promise<void>;
-    grant(options?: (RateLimit[] | RateLimit)): Promise<void>;
-    schedule(options?: (RateLimit[] | RateLimit)): Promise<Date>;
+    flush(idents?: (RateIdent[] | RateIdent)): Promise<void>;
+    grant(rates?: (RateLimit[] | RateLimit)): Promise<void>;
+    schedule(rates?: (RateLimit[] | RateLimit)): Promise<Date>;
 }
